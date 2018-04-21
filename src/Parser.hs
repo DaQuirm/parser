@@ -72,9 +72,17 @@ separatedBy p separator = do
   last <- p
   pure  $ matches ++ [last]
 
-within :: (Alternative m, Monad m, Uncons s c, Eq c) => c -> c -> ParserT s m s -> ParserT s m s
-within c1 c2 p = do
-  one c1
+repeatN :: (Alternative m, Monad m) => Int -> ParserT s m a -> ParserT s m [a]
+repeatN 0 _ = empty
+repeatN 1 p = pure <$> p
+repeatN n p = do
+  hd <- p
+  tl <- repeatN (n - 1) p
+  pure (hd : tl)
+
+within :: (Alternative m, Monad m, Uncons s c, Eq c) => ParserT s m s -> ParserT s m s -> ParserT s m s -> ParserT s m s
+within before after p = do
+  before
   content <- p
-  one c2
+  after
   pure content
