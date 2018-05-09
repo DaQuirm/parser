@@ -3,6 +3,7 @@ module Parser where
 import Control.Applicative (Alternative, empty, (<|>), many)
 import Control.Monad ((>=>), guard)
 import Control.Arrow (first)
+import Data.Monoid ((<>))
 
 import Uncons (Uncons(uncons))
 
@@ -27,6 +28,10 @@ instance (Monad m) => Monad (ParserT s m) where
 instance (Alternative m, Monad m) => Alternative (ParserT s m) where
   empty = ParserT (const empty)
   (<|>) (ParserT a) (ParserT b) = ParserT $ \xs -> a xs <|> b xs
+
+instance (Monoid a, Monad m) => Monoid (ParserT s m a) where
+  mempty = pure mempty
+  mappend p1 p2 = (<>) <$> p1 <*> p2
 
 item :: (Uncons s c, Alternative m, Monad m) => ParserT s m c
 item = ParserT $ \s ->
@@ -75,10 +80,7 @@ separatedBy p separator = do
 repeatN :: (Alternative m, Monad m) => Int -> ParserT s m a -> ParserT s m [a]
 repeatN 0 _ = empty
 repeatN 1 p = pure <$> p
-repeatN n p = do
-  hd <- p
-  tl <- repeatN (n - 1) p
-  pure (hd : tl)
+repeatN n p = (pure <$> p) <> repeatN (n - 1) p
 
 within :: (Alternative m, Monad m, Uncons s c, Eq c) => ParserT s m s -> ParserT s m s -> ParserT s m s -> ParserT s m s
 within before after p = do
