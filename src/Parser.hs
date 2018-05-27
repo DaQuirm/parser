@@ -1,6 +1,6 @@
 module Parser where
 
-import Control.Applicative (Alternative, empty, (<|>), many)
+import Control.Applicative (Alternative, empty, (<|>), many, some)
 import Control.Monad ((>=>), guard)
 import Control.Arrow (first)
 import Data.Monoid ((<>))
@@ -65,13 +65,13 @@ factor n = ParserT $ \i -> do
 runParser :: s -> ParserT s m a -> m (a, s)
 runParser str (ParserT fn) = fn str
 
-separatedByMany :: (Alternative m, Monad m) => ParserT s m a -> ParserT s m a -> ParserT s m [a]
-separatedByMany p separator = many $ do
+separatedByMany :: (Alternative m, Monad m) => ParserT s m a -> ParserT s m b -> ParserT s m [a]
+separatedByMany p separator = some $ do
   a <- p
   separator
   pure a
 
-separatedBy :: (Alternative m, Monad m) => ParserT s m a -> ParserT s m a -> ParserT s m [a]
+separatedBy :: (Alternative m, Monad m) => ParserT s m a -> ParserT s m b -> ParserT s m [a]
 separatedBy p separator = do
   matches <- separatedByMany p separator
   last <- p
@@ -82,7 +82,7 @@ repeatN 0 _ = empty
 repeatN 1 p = pure <$> p
 repeatN n p = (pure <$> p) <> repeatN (n - 1) p
 
-within :: (Alternative m, Monad m, Uncons s c, Eq c) => ParserT s m s -> ParserT s m s -> ParserT s m s -> ParserT s m s
+within :: (Alternative m, Monad m) => ParserT s m b -> ParserT s m b -> ParserT s m a -> ParserT s m a
 within before after p = do
   before
   content <- p
