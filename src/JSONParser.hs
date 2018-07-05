@@ -37,21 +37,21 @@ jsonControlChar = do
     pure $ slash : match
 
 jsonString :: (Alternative m, Monad m) => ParserT String m Json
-jsonString = JString <$> (within (string "\"") (string "\"") $ join <$> many (string "" <|> fmap pure jsonChar <|> jsonControlChar))
+jsonString = JString <$> (within (string "\"") (string "\"") $ join <$> many (fmap pure jsonChar <|> jsonControlChar))
 
 jsonNumber :: (Alternative m, Monad m) => ParserT String m Json
 jsonNumber = JNumber . digitToInt <$> digit
 
 jsonArray :: (Alternative m, Monad m) => ParserT String m Json
-jsonArray = JArray <$> (within (string "[") (string "]") $ separatedBy jsonValue (string ","))
+jsonArray = JArray <$> (within (string "[") (string "]") $ json `separatedBy` (string ","))
 
 jsonObject :: (Alternative m, Monad m) => ParserT String m Json
-jsonObject = within (string "{") (string "}") $ JObject <$> separatedBy parseKeyValue (string ",")
+jsonObject = within (string "{") (string "}") $ JObject <$> keyValuePair `separatedBy` (string ",")
                 where
-                    parseKeyValue = do
-                        key <- many jsonChar
+                    keyValuePair = do
+                        JString key <- jsonString
                         string ":"
-                        (,) <$> pure key <*> jsonValue
+                        (,) <$> pure key <*> json
 
 jsonBool :: (Alternative m, Monad m) => ParserT String m Json
 jsonBool = JBool . boolFromString <$> (string "true" <|> string "false")
@@ -63,15 +63,10 @@ jsonBool = JBool . boolFromString <$> (string "true" <|> string "false")
 jsonNull :: (Alternative m, Monad m) => ParserT String m Json
 jsonNull = JNull <$ string "null"
 
-jsonValue :: (Alternative m, Monad m) => ParserT String m Json
-jsonValue
-      = jsonString
+json :: (Alternative m, Monad m) => ParserT String m Json
+json =  jsonString
     <|> jsonNumber
     <|> jsonObject
     <|> jsonArray
     <|> jsonBool
     <|> jsonNull
-
-
-jsonParser :: (Alternative m, Monad m) => ParserT String m Json
-jsonParser = jsonArray <|> jsonObject
