@@ -4,6 +4,7 @@ import Control.Applicative (Alternative, empty, (<|>), many, some)
 import Control.Monad ((>=>), guard)
 import Control.Arrow (first)
 import Data.Monoid ((<>))
+import Data.Char (isSpace)
 
 import Uncons (Uncons(uncons))
 
@@ -77,3 +78,9 @@ repeatN n p = (pure <$> p) <> repeatN (n - 1) p
 
 within :: (Alternative m, Monad m) => ParserT s m b -> ParserT s m b -> ParserT s m a -> ParserT s m a
 within before after p = before *> p <* after
+
+singleSpace :: (Alternative m, Monad m) => ParserT String m Char
+singleSpace = satisfy isSpace
+
+space :: (Alternative m, Monad m) => ParserT String m String
+space = many singleSpace

@@ -1,6 +1,6 @@
 module JSONParser where
 
-import Control.Applicative (Alternative, (<|>), empty, many)
+import Control.Applicative (Alternative, (<|>), empty, many, some)
 import Control.Monad (join)
 import Data.Char (isControl, digitToInt)
 import Data.Functor ((<$))
@@ -8,12 +8,12 @@ import Data.Functor ((<$))
 import Parser
 
 data Json
-    = JString String
-    | JNumber Int
-    | JArray [Json]
-    | JObject [(String, Json)]
-    | JNull
-    | JBool Bool
+    = JsonString String
+    | JsonNumber Int
+    | JsonArray [Json]
+    | JsonObject [(String, Json)]
+    | JsonNull
+    | JsonBool Bool
     deriving (Show)
 
 class FromJson a where
@@ -37,36 +37,38 @@ jsonControlChar = do
     pure $ slash : match
 
 jsonString :: (Alternative m, Monad m) => ParserT String m Json
-jsonString = JString <$> (within (string "\"") (string "\"") $ join <$> many (fmap pure jsonChar <|> jsonControlChar))
+jsonString = JsonString <$> (within (string "\"") (string "\"") $ join <$> many (fmap pure jsonChar <|> jsonControlChar))
 
 jsonNumber :: (Alternative m, Monad m) => ParserT String m Json
-jsonNumber = JNumber . digitToInt <$> digit
+jsonNumber = JsonNumber .read <$> some digit
 
 jsonArray :: (Alternative m, Monad m) => ParserT String m Json
-jsonArray = JArray <$> (within (string "[") (string "]") $ json `separatedBy` (string ","))
+jsonArray = JsonArray <$> (within (string "[" >> space) (space >> string "]") $ json `separatedBy` (space >> string "," >> space))
 
 jsonObject :: (Alternative m, Monad m) => ParserT String m Json
-jsonObject = within (string "{") (string "}") $ JObject <$> keyValuePair `separatedBy` (string ",")
+jsonObject = within (string "{" >> space) (space >> string "}") $ JsonObject <$> keyValuePair `separatedBy` (space >> string "," >> space)
                 where
                     keyValuePair = do
-                        JString key <- jsonString
+                        JsonString key <- jsonString
+                        space
                         string ":"
+                        space
                         (,) <$> pure key <*> json
 
 jsonBool :: (Alternative m, Monad m) => ParserT String m Json
-jsonBool = JBool . boolFromString <$> (string "true" <|> string "false")
+jsonBool = JsonBool . boolFromString <$> (string "true" <|> string "false")
                 where
                     boolFromString "true"  = True
                     boolFromString "false" = False
                     boolFromString _       = error "Bad Boolean!!!"
 
 jsonNull :: (Alternative m, Monad m) => ParserT String m Json
-jsonNull = JNull <$ string "null"
+jsonNull = JsonNull <$ string "null"
 
 json :: (Alternative m, Monad m) => ParserT String m Json
-json =  jsonString
-    <|> jsonNumber
-    <|> jsonObject
+json =  jsonObject
     <|> jsonArray
+    <|> jsonString
+    <|> jsonNumber
     <|> jsonBool
     <|> jsonNull
