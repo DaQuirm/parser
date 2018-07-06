@@ -1,7 +1,10 @@
 module Main where
 
-import Parser
+import Parser (runParser)
+import JSONParser (json)
 
 main :: IO ()
-main = pure ()
-
+main = do
+  zips <- readFile "./json/zips.json"
+  zipsJson <- runParser zips json
+  print zipsJson

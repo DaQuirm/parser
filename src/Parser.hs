@@ -55,6 +55,9 @@ char = one
 digit :: (Alternative m, Monad m) => ParserT String m Char
 digit = satisfy (\x -> '0' <= x && x <= '9')
 
+nonZeroDigit :: (Alternative m, Monad m) => ParserT String m Char
+nonZeroDigit = satisfy (\x -> '0' < x && x <= '9')
+
 string :: (Alternative m, Monad m) => String -> ParserT String m String
 string = mapM char
 

@@ -4,12 +4,13 @@ import Control.Applicative (Alternative, (<|>), empty, many, some)
 import Control.Monad (join)
 import Data.Char (isControl, digitToInt)
 import Data.Functor ((<$))
+import Data.Monoid ((<>))
 
 import Parser
 
 data Json
     = JsonString String
-    | JsonNumber Int
+    | JsonNumber Float
     | JsonArray [Json]
     | JsonObject [(String, Json)]
     | JsonNull
@@ -40,7 +41,11 @@ jsonString :: (Alternative m, Monad m) => ParserT String m Json
 jsonString = JsonString <$> (within (string "\"") (string "\"") $ join <$> many (fmap pure jsonChar <|> jsonControlChar))
 
 jsonNumber :: (Alternative m, Monad m) => ParserT String m Json
-jsonNumber = JsonNumber .read <$> some digit
+jsonNumber = JsonNumber .read <$>
+  (string "-" <|> string "") <>
+  (string "0" <|> ((pure <$> nonZeroDigit) <> many digit)) <>
+  ((string "." <> some digit) <|> string "") <>
+  (((string "e" <|> string "E") <> (string "+" <|> string "-" <|> string "") <> some digit) <|> string "")
 
 jsonArray :: (Alternative m, Monad m) => ParserT String m Json
 jsonArray = JsonArray <$> (within (string "[" >> space) (space >> string "]") $ json `separatedBy` (space >> string "," >> space))
